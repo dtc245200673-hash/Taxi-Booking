@@ -2,6 +2,8 @@
 import logging
 import os
 import time
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 import psycopg
@@ -20,11 +22,30 @@ from typing import Literal
 
 from app.database import pool
 
+
+LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
+
 logging.basicConfig(
     level=os.getenv("LOG_LEVEL", "INFO"),
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    format=LOG_FORMAT,
 )
+
 logger = logging.getLogger("taxi-api")
+
+log_dir = Path("/app/logs")
+log_dir.mkdir(parents=True, exist_ok=True)
+
+file_handler = RotatingFileHandler(
+    log_dir / "taxi-backend.log",
+    maxBytes=5 * 1024 * 1024,
+    backupCount=3,
+    encoding="utf-8",
+)
+file_handler.setFormatter(logging.Formatter(LOG_FORMAT))
+logger.addHandler(file_handler)
+
+logger.info("taxi_backend_logging_initialized")
+
 
 REQUEST_COUNT = Counter(
     "taxi_http_requests_total",

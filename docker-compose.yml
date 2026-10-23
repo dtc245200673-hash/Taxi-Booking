@@ -1,6 +1,35 @@
 
 services:
   
+  promtail:
+    image: grafana/promtail:3.5.0
+    container_name: taxi-promtail
+    restart: unless-stopped
+    command:
+      - "-config.file=/etc/promtail/config.yml"
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - taxi_logs:/var/log/taxi:ro
+    depends_on:
+      - loki
+    networks:
+      - taxi-network
+
+  
+  loki:
+    image: grafana/loki:3.5.0
+    container_name: taxi-loki
+    restart: unless-stopped
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/loki-config.yml:ro
+      - loki_data:/loki
+    networks:
+      - taxi-network
+
+  
   cadvisor:
     image: ghcr.io/google/cadvisor:v0.53.0
     container_name: taxi-cadvisor
@@ -98,6 +127,8 @@ services:
       context: ./backend
     container_name: taxi-backend
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       LOG_LEVEL: INFO
@@ -106,6 +137,9 @@ services:
         condition: service_healthy
     expose:
       - "8000"
+
+    volumes:
+      - taxi_logs:/app/logs
     networks:
       - taxi-network
 
@@ -149,6 +183,8 @@ volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
+  loki_data:
+  taxi_logs:
 
 networks:
   taxi-network:
